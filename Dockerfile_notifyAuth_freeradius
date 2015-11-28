@@ -1,0 +1,17 @@
+FROM roocell/prep_freeradius_compile
+MAINTAINER Michael Russell
+
+
+COPY freeradius/entrypoint.sh /tmp/entrypoint.sh
+COPY freeradius/build_radius.sh /tmp/build_radius.sh
+COPY freeradius/fix_permissions.sh /tmp/fix_permissions.sh
+RUN chmod 755 /tmp/entrypoint.sh
+RUN chmod 755 /tmp/build_radius.sh
+RUN chmod 755 /tmp/fix_permissions.sh
+
+#ENTRYPOINT ["/tmp/entrypoint.sh"]
+CMD /tmp/entrypoint.sh
+
+EXPOSE 1812/udp
+EXPOSE 1813/udp
+

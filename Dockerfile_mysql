@@ -1,0 +1,16 @@
+FROM mysql
+MAINTAINER Michael Russell
+
+ENV MYSQL_ROOT_PASSWORD admin123 
+ENV MYSQL_PASSWORD admin123 
+ENV MYSQL_DATABASE mysql       
+
+# this need to stay the same for script to work
+ENV MYSQL_USER mysql
+
+COPY ./mysql/localdb-run.sh /
+RUN chmod 755 /localdb-run.sh
+
+ENTRYPOINT ["/localdb-run.sh"] 
+
+EXPOSE 3306

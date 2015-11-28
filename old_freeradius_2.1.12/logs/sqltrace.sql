@@ -1,0 +1,1 @@
+INSERT INTO radpostauth                           (username, pass, reply, authdate)                           VALUES (                           'emiruss',                           '',                           'Access-Reject', '2015-11-22 03:49:11');

@@ -1,0 +1,43 @@
+# this dockerfile sets up a ubuntu instance ready for a freeradius-v3.0x compile
+# including an openssl upgrade
+
+
+FROM ubuntu:trusty
+MAINTAINER Michael Russell
+
+# Set noninteractive mode for apt-get
+ENV DEBIAN_FRONTEND noninteractive
+
+# Upgrade base system packages
+RUN apt-get update
+
+# install build tools and libraries required by freeradius
+RUN apt-get -y install software-properties-common build-essential \
+    && apt-get -y install libtalloc-dev \
+    && apt-get -y install wget
+
+# remove the old openssl
+RUN apt-get -y purge openssl
+RUN apt-get -y autoremove && apt-get autoclean
+
+# freeradius requires openssl heartbleed fix - have to compile latest openssl to get this
+RUN wget http://openssl.org/source/openssl-1.0.1p.tar.gz
+RUN tar -zxvf openssl-1.0.1p.tar.gz
+WORKDIR openssl-1.0.1p 
+ENV CFLAGS -fPIC
+RUN ./config shared --prefix=/usr/local/openssl --openssldir=/usr/local/openssl
+RUN make
+RUN make install_sw
+ENV PATH /usr/local/openssl/bin:$PATH
+WORKDIR /
+
+RUN openssl version
+
+# Clean up APT when done.
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Clean up openssl compile
+RUN rm -rf /openssl-1.0.1p
+
+
+
