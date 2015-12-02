@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "name": "apnagent-wifisentinel",
+  "version": "0.0.0",
+  "scripts": { "start" : "node agent/hello.js" },
+  "dependencies": {
+  "apnagent": "1.1.3"
+  }
+}
