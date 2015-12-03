@@ -17,6 +17,8 @@ RUN apt-get -y install software-properties-common build-essential \
     && apt-get -y install wget \
     && apt-get -y install libmysqlclient-dev
 
+RUN apt-get update; apt-get -y install libcurl4-openssl-dev
+
 # just having libmysqlclient-dev installed, freeradius compile will automatically build the rlm_mysql module
 
 # remove the old openssl
