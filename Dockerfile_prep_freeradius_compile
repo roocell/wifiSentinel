@@ -14,7 +14,10 @@ RUN apt-get update
 # install build tools and libraries required by freeradius
 RUN apt-get -y install software-properties-common build-essential \
     && apt-get -y install libtalloc-dev \
-    && apt-get -y install wget
+    && apt-get -y install wget \
+    && apt-get -y install libmysqlclient-dev
+
+# just having libmysqlclient-dev installed, freeradius compile will automatically build the rlm_mysql module
 
 # remove the old openssl
 RUN apt-get -y purge openssl
