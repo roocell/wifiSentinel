@@ -33,5 +33,5 @@ if($stmt->rowCount() > 0)
     echo json_encode(array("error"=>"No records found."));
 }
 
- 
+$db=NULL;
 ?>
