@@ -1,15 +1,22 @@
 <?php
 //phpinfo();
+error_reporting(E_ALL); ini_set('display_errors', '1');
 header("Content-Type: text/json");
+include("util.php");
+
+$device_token=checkinput('device_token');
+
+validate_sentinel($device_token);
 ?>
 
-
-
 <?php
+// get user list for this sentinel
+
 // Could also use getenv('MYSQL_PORT_3306_TCP_ADDR')
 // But recommended to use the host entry which survives server restart
 //$dsn = 'mysql:host='.gethostbyname('mysql');
-$dsn = "mysql:host=".gethostbyname('mysql').";port=3306;dbname=radius;charset=utf8";
+$dbname="radius";
+$dsn = "mysql:host=".gethostbyname('mysql').";port=3306;dbname=$dbname;charset=utf8";
 $usr = 'root';
 $pwd = 'admin123';
 

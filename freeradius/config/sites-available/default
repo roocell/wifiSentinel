@@ -699,7 +699,7 @@ post-auth {
 	#  After authenticating the user, do another SQL query.
 	#
 	#  See "Authentication Logging Queries" in mods-available/sql
-	sql
+	#sql
 	notify_auth
 
 	#
@@ -806,6 +806,7 @@ post-auth {
 	Post-Auth-Type REJECT {
 		# log failed authentications in SQL, too.
 		-sql
+                notify_auth
 		attr_filter.access_reject
 
 		# Insert EAP-Failure message if the request was

@@ -71,7 +71,8 @@ if (!$fp)
 // Create the payload body
 $body['aps'] = array(
 	'alert' => $message,
-	'sound' => 'default'
+	'sound' => 'default',
+        'content-available' => '1'
 	);
 $body['data'] = $data;
 
