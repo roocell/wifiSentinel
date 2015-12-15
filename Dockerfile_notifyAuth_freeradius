@@ -1,17 +1,38 @@
 FROM roocell/prep_freeradius_compile
 MAINTAINER Michael Russell
 
+# this is to create a container with notifyAuth freeradius built
 
-COPY freeradius/entrypoint.sh /tmp/entrypoint.sh
-COPY freeradius/build_radius.sh /tmp/build_radius.sh
-COPY freeradius/fix_permissions.sh /tmp/fix_permissions.sh
-RUN chmod 755 /tmp/entrypoint.sh
-RUN chmod 755 /tmp/build_radius.sh
-RUN chmod 755 /tmp/fix_permissions.sh
 
-#ENTRYPOINT ["/tmp/entrypoint.sh"]
-CMD /tmp/entrypoint.sh
 
-EXPOSE 1812/udp
-EXPOSE 1813/udp
+# Set noninteractive mode for apt-get
+ENV DEBIAN_FRONTEND noninteractive
+
+# Upgrade base system packages
+RUN apt-get update
+
+# install git
+RUN apt-get install -y git
+
+# checkout roocell/freeradius and compile
+RUN echo "********************************************************"
+RUN echo " CHECKING OUT FREERADIUS v3.0x-notifyAuth               "
+RUN echo "********************************************************"
+RUN git clone https://github.com/roocell/freeradius-server.git --branch v3.0x-notifyAuth --single-branch freeradius-server
+
+RUN echo "********************************************************"
+RUN echo " COMPILING FREERADIUS                                   "
+RUN echo "********************************************************"
+WORKDIR freeradius-server
+RUN ./configure --with-openssl --with-openssl-lib-dir=/usr/local/openssl/lib --with-openssl-include-dir=/usr/local/openssl/include/
+RUN make
+RUN make install
+WORKDIR /
+
+RUN echo "********************************************************"
+RUN echo " CLEANING APT_GET AND FREERADIUS                        "
+RUN echo "********************************************************"
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN rm -rf freeradius-server
+
 

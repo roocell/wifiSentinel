@@ -1,0 +1,32 @@
+FROM roocell/notifyauth_freeradius
+MAINTAINER Michael Russell
+
+# we will use the config files that come with the compile
+# but we'll modify them here
+
+# edit freeradius config files based on input args
+# - radius db name (radius_$apip) 
+# - client.conf (add $apip) 
+# - mysql server 
+# - 
+# -
+# -
+RUN echo "********************************************************"
+RUN echo " MODIFYING FREERADIUS CONFIG"
+RUN echo "********************************************************"
+
+# pass in mysql_ip arg "-e $(docker inspect --format='{{.NetworkSettings.IPAddress}} mysql)"
+RUN echo $mysql_ip $mysql_port
+RUN cp -f /usr/local/etc/raddb/mods-available/sql /usr/local/etc/raddb/mods-enabled
+RUN sed -i "s/.*driver =.*/driver = \"rlm_sql_mysql\"/" /usr/local/etc/raddb/mods-enabled/sql
+RUN sed -i "s/.*server =.*/server = \"$mysql_ip\"/" /usr/local/etc/raddb/mods-enabled/sql
+RUN sed -i "s/.*port =.*/port = $mysql_port/" /usr/local/etc/raddb/mods-enabled/sql
+RUN sed -i "s/.*login =.*/login = \"$mysql_login\"/" /usr/local/etc/raddb/mods-enabled/sql
+RUN sed -i "s/.*password =.*/password = \"$mysql_password\"/" /usr/local/etc/raddb/mods-enabled/sql
+RUN sed -i "s/.*radius_db =.*/radius_db = \"$mysql_radius_db\"/" /usr/local/etc/raddb/mods-enabled/sql
+
+#CMD radiusd -f -xx
+
+EXPOSE 1812/udp
+EXPOSE 1813/udp
+
