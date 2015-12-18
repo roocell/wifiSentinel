@@ -2,9 +2,40 @@
 
 echo "\n\n\n================\nSTARTING UP....\n======================\n";
 
-
+//================================================================
 $PHPAPACHE_CONTAINER_NAME="myphpcontainer";
 $MYSQL_CONTAINER_NAME="mysql";
+$CONTAINER_PREFIX="na_fr_";
+$DBNAME_PREFIX="radius__"; // dont use '_' in here
+
+$RADIUS_SQL_FILE="schema.sql";
+
+function freeradius_dbname($_apip)
+{
+  global $DBNAME_PREFIX;
+  return $DBNAME_PREFIX.str_replace(".", "_", $_apip);
+}
+
+function docker_freeradius_cmd($_apip)
+{
+  global $PHPAPACHE_CONTAINER_NAME;
+  return "docker run -it -p 18121:1812/udp \\
+    -e MYSQL_IP=\$(docker inspect --format='{{.NetworkSettings.IPAddress}}' mysql) \\
+    -e MYSQL_PORT=\$(echo \$(docker inspect --format='{{range \$p, \$conf := .Config.ExposedPorts}} {{\$p}} {{end}}' mysql) | awk '{a=\$1; sub(/\\/tcp/, \"\", a); print a}') \\
+    -e MYSQL_RADIUS_DB=".freeradius_dbname($_apip)." \\
+    -e MYSQL_LOGIN=radius \\
+    -e MYSQL_PASSWORD=admin123 \\
+    -e APIP=$_apip \\
+    -e RADIUS_SECRET=radiussecret \\
+    -e NOTIFY_AUTH_IP=\$(docker inspect --format='{{.NetworkSettings.IPAddress}}' $PHPAPACHE_CONTAINER_NAME) \\
+    -e NOTIFY_AUTH_PORT=80 \\
+    --name notifyauth \\
+    -v ~/wifiSentinel/freeradius/entrypoint_wifi_sentinel.sh:/usr/bin/entrypoint_wifi_sentinel.sh \\
+    --rm roocell/notifyauth_freeradius entrypoint_wifi_sentinel.sh";
+}
+
+
+//================================================================
 
 $dinghy_running=1;
 $mysql_container_running=1;
@@ -33,7 +64,7 @@ if (!$mysql_container_running)
   }
   echo "STARTING MYSQL CONTAINER....\n======================\n";
   system("docker run  -p 3900:3306 --name $MYSQL_CONTAINER_NAME -v ~/wifiSentinel/mysql/datadir:/var/lib/mysql -d osx_localdb_mysql");
-  sleep(1);
+  sleep(3); // give some time for the container to start
 }
 
 
@@ -51,7 +82,7 @@ $phpapache_container_running = shell_exec("docker ps | grep $PHPAPACHE_CONTAINER
 if (!$phpapache_container_running)
 {
   echo "STARTING PHP-APACHE CONTAINER...\n======================\n";
-  system("sed -i .bak \"s/.*Servers.*'host'.*/\$cfg['Servers'][\$i]['host'] = '$(docker inspect --format='{{.NetworkSettings.IPAddress}}' $MYSQL_CONTAINER_NAME):3306';/\" ~/wifiSentinel/www/phpmyadmin/config.inc.php");
+  system("sed -i .bak \"s/.*Servers.*'host'.*/\\\$cfg['Servers'][\\\$i]['host'] = '$(docker inspect --format='{{.NetworkSettings.IPAddress}}' $MYSQL_CONTAINER_NAME):3306';/\" ~/wifiSentinel/www/phpmyadmin/config.inc.php");
   system("docker run --volumes-from www -d -p 11111:80 -p 11112:443 -it --link $MYSQL_CONTAINER_NAME:mysql --name $PHPAPACHE_CONTAINER_NAME roocell/phpapache");
 
   sleep(1);
@@ -59,8 +90,11 @@ if (!$phpapache_container_running)
 
 
 
-$CONTAINER_PREFIX="na_fr_";
-$DBNAME_PREFIX="radius_";
+
+
+
+
+
 
 $MYSQL_PORT=shell_exec("docker inspect --format='{{(index (index .NetworkSettings.Ports \"3306/tcp\") 0).HostPort}}' $MYSQL_CONTAINER_NAME");
 $MYSQL_IP  ="192.168.99.100";
@@ -83,12 +117,12 @@ while(true)
   $sentinel_results=$db->query($sql);
 
   # get list of databases on mysql server (there should be one radius db per apip
-  $sql = "SHOW DATABASES LIKE '$DBNAME_PREFIX'";
-  $databases=$db->query($sql);
-
-  # close db
-  $db=NULL;
-
+  $databases=array();
+  $sql = "SHOW DATABASES LIKE '$DBNAME_PREFIX%'";
+  foreach($db->query($sql) as $row){  
+    $databases[]=$row[0];
+  }
+  //var_dump($databases);
 
   # capture current containers
   $c_apip_arr = array();
@@ -120,19 +154,47 @@ while(true)
     $db_exists=0;
     foreach ($databases as $dbname)
     {
-      $parts = explode("radius_", $dbname);
+      echo "DB $dbname\n";
+      $parts = explode($DBNAME_PREFIX, $dbname);
       $db_apip = $parts[1];
+      $db_apip = str_replace("_", ".", $db_apip);
       if ($db_apip == $apip)
       {
-        echo "$apip database exists";
+        //echo "$apip database exists\n";
         $db_exists=1;
       }
     }
     if (!$db_exists)
     {
       # create a database for this sentinel
-    }
+      echo "Creating DB for $apip...\n";
+      $db_name=freeradius_dbname($apip);
+      $sql="CREATE DATABASE IF NOT EXISTS $db_name";
+      if (!$db->query($sql)) 
+      {
+        echo "Failed to create DB ($sql)\n";
+        echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo());
+      }
 
+      $db=NULL; // close previous connection - because we're going to create another below
+
+
+      $dsn = "mysql:host=$MYSQL_IP;port=$MYSQL_PORT;dbname=$db_name;charset=utf8";
+      try {
+      $db = new PDO($dsn, $usr, $pwd);
+      } catch (PDOException $e) {
+        die('Connection failed: ' . $e->getMessage());
+      }
+
+      echo "Setting up Schema.....\n";
+      $sql = file_get_contents($RADIUS_SQL_FILE); 
+      if (!$db->query($sql))
+      {
+        echo "Failed to create DB ($sql)\n";
+        echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo());
+      }
+    }
+    // NOTE: keep db open so we can query the database on the next loop
 
 
     # check if docker container for that apip is running
@@ -150,6 +212,9 @@ while(true)
       # start up any containers
       $c_name=$CONTAINER_PREFIX.$apip;
       echo "starting container $c_name\n";
+
+      $cmd=docker_freeradius_cmd($apip);
+      system($cmd);
     }
 
 

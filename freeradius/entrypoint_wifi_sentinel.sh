@@ -46,5 +46,5 @@ echo -e "client $APIP {\n
 
 
 
-bash
-#radiusd -f -xx
+#bash
+radiusd -f -xx & 
