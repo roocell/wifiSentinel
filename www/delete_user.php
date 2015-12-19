@@ -6,8 +6,8 @@ include("util.php");
 
 $username=checkinput('username');
 $token=checkinput('device_token');
+$apip=validate_sentinel($token);
 
-// TODO (future): lookup token to find instance of radius db to add user to
 
 $dsn = "mysql:host=".gethostbyname('mysql').";port=3306;dbname=wifi_sentinel;charset=utf8";
 $usr = 'root';
@@ -38,9 +38,9 @@ $db = NULL;
 // But recommended to use the host entry which survives server restart
 //$dsn = 'mysql:host='.gethostbyname('mysql');
 
-$radius_db="radius"; // TODO (future): this db will be per AP
+$dbname=freeradius_dbname($apip);
 
-$dsn = "mysql:host=".gethostbyname('mysql').";port=3306;dbname=$radius_db;charset=utf8";
+$dsn = "mysql:host=".gethostbyname('mysql').";port=3306;dbname=$dbname;charset=utf8";
 $usr = 'root';
 $pwd = 'admin123';
 

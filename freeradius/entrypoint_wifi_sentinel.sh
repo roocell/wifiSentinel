@@ -44,7 +44,20 @@ echo -e "client $APIP {\n
        shortname       = wifi_sentinel-ap\n
 }\n" >> /usr/local/etc/raddb/clients.conf
 
-
+echo "logrotate"
+touch /var/log/radius.log
+echo "/var/log/radius.log {
+    su
+    rotate 2
+    copytruncate
+    size 10K
+}" >> /logrotate.conf
+fork_logrotate() {
+  # must be after radius start (so it's the same FD in the logfile)
+   sleep 3
+   logrotate  logrotate.conf
+}
+fork_logrotate &
 
 #bash
-radiusd -f -xx & 
+exec radiusd -f -xx -l /var/log/radius.log

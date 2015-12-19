@@ -3,6 +3,7 @@
 echo "\n\n\n================\nSTARTING UP....\n======================\n";
 
 //================================================================
+// TODO: these are also defined in util.php - should make it common
 $PHPAPACHE_CONTAINER_NAME="myphpcontainer";
 $MYSQL_CONTAINER_NAME="mysql";
 $CONTAINER_PREFIX="na_fr_";
@@ -15,6 +16,12 @@ function freeradius_dbname($_apip)
   global $DBNAME_PREFIX;
   return $DBNAME_PREFIX.str_replace(".", "_", $_apip);
 }
+function freeradius_contname($_apip)
+{
+  global $CONTAINER_PREFIX;
+  return $CONTAINER_PREFIX.str_replace(".", "_", $_apip);
+}
+
 
 function docker_freeradius_cmd($_apip)
 {
@@ -29,9 +36,9 @@ function docker_freeradius_cmd($_apip)
     -e RADIUS_SECRET=radiussecret \\
     -e NOTIFY_AUTH_IP=\$(docker inspect --format='{{.NetworkSettings.IPAddress}}' $PHPAPACHE_CONTAINER_NAME) \\
     -e NOTIFY_AUTH_PORT=80 \\
-    --name notifyauth \\
+    --name ".freeradius_contname($_apip)." \\
     -v ~/wifiSentinel/freeradius/entrypoint_wifi_sentinel.sh:/usr/bin/entrypoint_wifi_sentinel.sh \\
-    --rm roocell/notifyauth_freeradius entrypoint_wifi_sentinel.sh";
+    -d roocell/notifyauth_freeradius entrypoint_wifi_sentinel.sh";
 }
 
 
@@ -46,9 +53,9 @@ $dinghy_running = shell_exec('docker-machine ls | grep dinghy');
 if (!$dinghy_running)
 {
   echo "STARTING DINGHY....\n======================\n";
-  shell_exec('dinghy destroy');
-  shell_exec('dinghy create --provider virtualbox'); // this takes very long
-  shell_exec('docker rm -f dinghy_http_proxy');
+  system('dinghy destroy');
+  system('dinghy create --provider virtualbox'); // this takes very long
+  system('docker rm -f dinghy_http_proxy');
 }
 
 
@@ -88,7 +95,7 @@ if (!$phpapache_container_running)
   sleep(1);
 }
 
-
+// TODO: check for radius docker image and download if we don't have it
 
 
 
@@ -99,7 +106,7 @@ if (!$phpapache_container_running)
 $MYSQL_PORT=shell_exec("docker inspect --format='{{(index (index .NetworkSettings.Ports \"3306/tcp\") 0).HostPort}}' $MYSQL_CONTAINER_NAME");
 $MYSQL_IP  ="192.168.99.100";
 
-echo "MONITORING SENTINELS ($MYSQL_IP)....\n======================\n";
+echo "MONITORING SENTINELS (mysql_ip=$MYSQL_IP)....\n======================\n";
 while(true)
 {
 
@@ -119,32 +126,36 @@ while(true)
   # get list of databases on mysql server (there should be one radius db per apip
   $databases=array();
   $sql = "SHOW DATABASES LIKE '$DBNAME_PREFIX%'";
-  foreach($db->query($sql) as $row){  
+  foreach($db->query($sql) as $row){
     $databases[]=$row[0];
   }
   //var_dump($databases);
 
   # capture current containers
   $c_apip_arr = array();
-  $docker_ps = shell_exec('docker ps');
+  $docker_ps = shell_exec("docker ps --format \"table {{.Names}}\"");
   //echo $docker_ps;
-  $containers = explode('\n', $docker_ps);
-  foreach ($containers as $container)
+  $containers = explode("\n", $docker_ps);
+  $ap_containers=array();
+  //echo count($containers)." containers\n";
+  foreach ($containers as $c_name)
   {
-    $attribs = preg_split('/\s+/', $container);
-    $c_name = $attribs[6];
+    //echo "CNAME: ".$c_name."\n";
+    //$attribs = preg_split('/\s+/', $container); // explode by whitespace
     if ($c_name == 'NAMES') continue;
     if ($c_name == $MYSQL_CONTAINER_NAME) continue;
     if ($c_name == $PHPAPACHE_CONTAINER_NAME) continue;
 
-    if (strpos($c_name, $CONTAINER_PREFIX) != FALSE)
+    $pos = strpos($c_name, $CONTAINER_PREFIX);
+    if ($pos === false) // 3= on purpose - to compare boolean vs position 0
     {
-      $parts = split($CONTAINER_PREFIX, $c_name);               
-      $c_apip_arr[] = $parts[1];
-      echo "APIP: ".$parts[1];
+    } else {
+      $ap_containers[] = $c_name;
+      //echo "APIP: $c_name\n";
     }
   }
 
+  //echo count($sentinel_results)." sentinels\n";
 
   foreach ($sentinel_results as $row)
   {
@@ -154,7 +165,7 @@ while(true)
     $db_exists=0;
     foreach ($databases as $dbname)
     {
-      echo "DB $dbname\n";
+      //echo "DB $dbname\n";
       $parts = explode($DBNAME_PREFIX, $dbname);
       $db_apip = $parts[1];
       $db_apip = str_replace("_", ".", $db_apip);
@@ -167,10 +178,10 @@ while(true)
     if (!$db_exists)
     {
       # create a database for this sentinel
-      echo "Creating DB for $apip...\n";
-      $db_name=freeradius_dbname($apip);
-      $sql="CREATE DATABASE IF NOT EXISTS $db_name";
-      if (!$db->query($sql)) 
+      echo "Creating DB for $apip...\n======================\n";
+      $creat_db_name=freeradius_dbname($apip);
+      $sql="CREATE DATABASE IF NOT EXISTS $creat_db_name";
+      if (!$db->query($sql))
       {
         echo "Failed to create DB ($sql)\n";
         echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo());
@@ -179,15 +190,15 @@ while(true)
       $db=NULL; // close previous connection - because we're going to create another below
 
 
-      $dsn = "mysql:host=$MYSQL_IP;port=$MYSQL_PORT;dbname=$db_name;charset=utf8";
+      $dsn = "mysql:host=$MYSQL_IP;port=$MYSQL_PORT;dbname=$creat_db_name;charset=utf8";
       try {
       $db = new PDO($dsn, $usr, $pwd);
       } catch (PDOException $e) {
         die('Connection failed: ' . $e->getMessage());
       }
 
-      echo "Setting up Schema.....\n";
-      $sql = file_get_contents($RADIUS_SQL_FILE); 
+      echo "Setting up Schema.....\n======================\n";
+      $sql = file_get_contents($RADIUS_SQL_FILE);
       if (!$db->query($sql))
       {
         echo "Failed to create DB ($sql)\n";
@@ -199,40 +210,50 @@ while(true)
 
     # check if docker container for that apip is running
     $c_is_running=0;
-    foreach ($c_apip_arr as $c_apip)
+    $c_name=freeradius_contname($apip);
+    //echo "checking containers.....$c_name\n";
+    foreach ($ap_containers as $c)
     {
-      if ($c_apip == $apip)
+      if ($c_name == $c)
       {
         echo "$apip freeradius is running\n";
         $c_is_running=1;
       }
-    }
+    } // end of $ap_containers
     if (!$c_is_running)
     {
-      # start up any containers
-      $c_name=$CONTAINER_PREFIX.$apip;
-      echo "starting container $c_name\n";
+      // force remove the container in case it exists - but stopped
+      system("docker rm -f $c_name");
 
+      # start up any containers
+      echo "STARTING CONTAINER $c_name\n======================\n";
       $cmd=docker_freeradius_cmd($apip);
+      echo $cmd."\n";
       system($cmd);
     }
 
 
 
-  }
+  } // end sentinels in DB
 
 
   # stop any containers
   # (age out of sentinel?)
   # DROP DATABASE $DBNAME_PREFIX.$apip
+  foreach ($ap_containers as $c)
+  {
+
+  }
+
 
   sleep(1);
+  echo "-------------------------------------------------------------------\n";
 }
 
 
 
 
-
+$db=NULL;
 
 
 

@@ -1,5 +1,20 @@
 <?php
 
+$CONTAINER_PREFIX="na_fr_";
+$DBNAME_PREFIX="radius__"; // dont use '_' in here
+
+function freeradius_dbname($_apip)
+{
+  global $DBNAME_PREFIX;
+  return $DBNAME_PREFIX.str_replace(".", "_", $_apip);
+}
+function freeradius_contname($_apip)
+{
+  global $CONTAINER_PREFIX;
+  return $CONTAINER_PREFIX.str_replace(".", "_", $_apip);
+}
+
+
 function checkinput($input)
 {
   if(!isset($_REQUEST[$input]) || !$_REQUEST[$input]!="")
@@ -37,7 +52,10 @@ function validate_sentinel($device_token)
     $db=NULL;
     exit();
   }
+  $row = $stmt->fetch(PDO::FETCH_ASSOC);
+  $apip=$row['apip'];
   $db=NULL;
+  return $apip;
 }
 
 function update_clients_conf ($apip)

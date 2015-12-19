@@ -6,7 +6,7 @@ include("util.php");
 
 $device_token=checkinput('device_token');
 
-validate_sentinel($device_token);
+$apip=validate_sentinel($device_token);
 ?>
 
 <?php
@@ -15,7 +15,7 @@ validate_sentinel($device_token);
 // Could also use getenv('MYSQL_PORT_3306_TCP_ADDR')
 // But recommended to use the host entry which survives server restart
 //$dsn = 'mysql:host='.gethostbyname('mysql');
-$dbname="radius";
+$dbname=freeradius_dbname($apip);
 $dsn = "mysql:host=".gethostbyname('mysql').";port=3306;dbname=$dbname;charset=utf8";
 $usr = 'root';
 $pwd = 'admin123';
@@ -37,7 +37,7 @@ if($stmt->rowCount() > 0)
     }
     echo json_encode(array("success"=>$rows));
 } else {
-    echo json_encode(array("error"=>"No records found."));
+    echo json_encode(array("error"=>"No records found.", "message"=>$dbname));
 }
 
 $db=NULL;
