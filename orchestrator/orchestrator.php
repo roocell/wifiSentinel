@@ -27,12 +27,18 @@ function freeradius_dbname($_apip)
   global $DBNAME_PREFIX;
   return $DBNAME_PREFIX.str_replace(".", "_", $_apip);
 }
+
 function freeradius_contname($_apip)
 {
   global $CONTAINER_PREFIX;
   return $CONTAINER_PREFIX.str_replace(".", "_", $_apip);
 }
-
+function freeradius_apip_from_contname($_contname)
+{
+  global $CONTAINER_PREFIX;
+  $parts=explode($CONTAINER_PREFIX, $_contname);
+  return str_replace("_", ".", $parts[1]);
+}
 
 function docker_freeradius_cmd($_apip, $_port)
 {
@@ -120,7 +126,6 @@ $MYSQL_IP   = $DOCKER_MACHINE_IP;
 echo "MONITORING SENTINELS (mysql_ip=$MYSQL_IP)....\n======================\n";
 while(true)
 {
-
   # monitor wifi_sentinels in DB
   $dsn = "mysql:host=$MYSQL_IP;port=$MYSQL_PORT;dbname=wifi_sentinel;charset=utf8";
   $usr = 'root';
@@ -167,11 +172,13 @@ while(true)
   }
 
   //echo count($sentinel_results)." sentinels\n";
-
-  foreach ($sentinel_results as $row)
+  //var_dump($sentinel_results);
+  $sentinels=array();
+  while($s = $sentinel_results->fetch(PDO::FETCH_ASSOC))
   {
-    $apip = $row['apip'];
-    $port = $row['port'];
+    $sentinels[]=$s;
+    $apip = $s['apip'];
+    $port = $s['port'];
 
     # check if radius_$apip database exists
     $db_exists=0;
@@ -256,17 +263,38 @@ while(true)
       echo $cmd."\n";
       system($cmd);
     }
-
-
-
   } // end sentinels in DB
 
 
-  # stop any containers
+  # SENTINEL REMOVAL
+  # remove DB, container based on sentinel table
   # (age out of sentinel?)
-  # DROP DATABASE $DBNAME_PREFIX.$apip
   foreach ($ap_containers as $c)
   {
+    $apip=freeradius_apip_from_contname($c);
+    $found=0;
+    foreach($sentinels as $s)
+    {
+      if ($apip == $s['apip'])
+      {
+        $found=1;
+        break;
+      }
+    }
+    if (!$found)
+    {
+      echo "REMOVING CONTAINER $c\n======================\n";
+      system("docker rm -f $c");
+      $dbname=freeradius_dbname($apip);
+      echo "REMOVING DB $dbname\n======================\n";
+      $sql = "DROP DATABASE ".$dbname;
+      if (!$db->query($sql))
+      {
+        echo "Failed to remove DB ($sql)\n";
+        echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo());
+      }
+
+    }
 
   }
 
