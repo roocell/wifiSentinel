@@ -11,6 +11,17 @@ $DBNAME_PREFIX="radius__"; // dont use '_' in here
 
 $RADIUS_SQL_FILE="schema.sql";
 
+$DOCKER_MACHINE_IP="192.168.99.100";
+
+$PF_FILE="~/wifiSentinel/pf/pf.rules";
+$PF_RESTART_CMD="sudo pfctl -F all -f /etc/pf.conf";
+
+function pf_file_entry($_port)
+{
+  global $DOCKER_MACHINE_IP;
+  return "rdr pass on en0 proto udp from any to any port $_port -> $DOCKER_MACHINE_IP port $_port";
+}
+
 function freeradius_dbname($_apip)
 {
   global $DBNAME_PREFIX;
@@ -23,10 +34,10 @@ function freeradius_contname($_apip)
 }
 
 
-function docker_freeradius_cmd($_apip)
+function docker_freeradius_cmd($_apip, $_port)
 {
   global $PHPAPACHE_CONTAINER_NAME;
-  return "docker run -it -p 18121:1812/udp \\
+  return "docker run -it -p $_port:1812/udp \\
     -e MYSQL_IP=\$(docker inspect --format='{{.NetworkSettings.IPAddress}}' mysql) \\
     -e MYSQL_PORT=\$(echo \$(docker inspect --format='{{range \$p, \$conf := .Config.ExposedPorts}} {{\$p}} {{end}}' mysql) | awk '{a=\$1; sub(/\\/tcp/, \"\", a); print a}') \\
     -e MYSQL_RADIUS_DB=".freeradius_dbname($_apip)." \\
@@ -103,8 +114,8 @@ if (!$phpapache_container_running)
 
 
 
-$MYSQL_PORT=shell_exec("docker inspect --format='{{(index (index .NetworkSettings.Ports \"3306/tcp\") 0).HostPort}}' $MYSQL_CONTAINER_NAME");
-$MYSQL_IP  ="192.168.99.100";
+$MYSQL_PORT = shell_exec("docker inspect --format='{{(index (index .NetworkSettings.Ports \"3306/tcp\") 0).HostPort}}' $MYSQL_CONTAINER_NAME");
+$MYSQL_IP   = $DOCKER_MACHINE_IP;
 
 echo "MONITORING SENTINELS (mysql_ip=$MYSQL_IP)....\n======================\n";
 while(true)
@@ -160,6 +171,7 @@ while(true)
   foreach ($sentinel_results as $row)
   {
     $apip = $row['apip'];
+    $port = $row['port'];
 
     # check if radius_$apip database exists
     $db_exists=0;
@@ -208,6 +220,19 @@ while(true)
     // NOTE: keep db open so we can query the database on the next loop
 
 
+    # freeradius port assignment
+    # this is just temporary (will not scale)
+    # port assignment is done by the registration process - but this task will make sure things are setup properly
+    $port_exists_in_pf=shell_exec("cat $PF_FILE | grep $port");
+    if (!$port_exists_in_pf)
+    {
+      echo "Editing PF file.....\n======================\n";
+      //file_put_contents($PF_FILE, pf_file_entry($port), FILE_APPEND);
+      system("echo \"".pf_file_entry($port)."\" >> ".$PF_FILE); // append
+      system("sudo pfctl -F all -f /etc/pf.conf"); // restart PF
+      echo "\n======================\n";
+    }
+
     # check if docker container for that apip is running
     $c_is_running=0;
     $c_name=freeradius_contname($apip);
@@ -227,7 +252,7 @@ while(true)
 
       # start up any containers
       echo "STARTING CONTAINER $c_name\n======================\n";
-      $cmd=docker_freeradius_cmd($apip);
+      $cmd=docker_freeradius_cmd($apip, $port);
       echo $cmd."\n";
       system($cmd);
     }

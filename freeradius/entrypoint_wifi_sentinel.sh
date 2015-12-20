@@ -44,7 +44,6 @@ echo -e "client $APIP {\n
        shortname       = wifi_sentinel-ap\n
 }\n" >> /usr/local/etc/raddb/clients.conf
 
-echo "logrotate"
 touch /var/log/radius.log
 echo "/var/log/radius.log {
     su
