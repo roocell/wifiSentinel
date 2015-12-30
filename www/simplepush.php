@@ -33,6 +33,7 @@ $sql="SELECT * FROM sentinels WHERE apip='$apip'";
 	foreach ($db->query($sql) as $row) {
 			// TODO: support multiple sentinels per ap
 			$deviceToken = $row['device_token'];
+      $appdebug = $row['debug'];
 	}
 if ($deviceToken)
 {
@@ -45,8 +46,6 @@ if ($deviceToken)
 }
 $db=NULL;
 
-// Put your private key's passphrase here:
-$passphrase = 'admin123';
 
 // Put your alert message here:
 $data = array ('username' => $username, 'apip' => $apip);
@@ -54,15 +53,26 @@ $message = $username." would like to join your wifi";
 
 ////////////////////////////////////////////////////////////////////////////////
 
-$ctx = stream_context_create();
-stream_context_set_option($ctx, 'ssl', 'local_cert', 'ck.pem');
-stream_context_set_option($ctx, 'ssl', 'passphrase', $passphrase);
 
 // Open a connection to the APNS server
-$fp = stream_socket_client(
-	'ssl://gateway.sandbox.push.apple.com:2195', $err,
-	$errstr, 60, STREAM_CLIENT_CONNECT|STREAM_CLIENT_PERSISTENT, $ctx);
-
+if ($appdebug)
+{
+	$passphrase = 'admin123'; // Put your private key's passphrase here:
+	$ctx = stream_context_create();
+	stream_context_set_option($ctx, 'ssl', 'local_cert', 'ck.pem');
+	stream_context_set_option($ctx, 'ssl', 'passphrase', $passphrase);
+  $fp = stream_socket_client(
+        'ssl://gateway.sandbox.push.apple.com:2195', $err,
+        $errstr, 60, STREAM_CLIENT_CONNECT|STREAM_CLIENT_PERSISTENT, $ctx);
+} else {
+	$passphrase = 'admin123'; // Put your private key's passphrase here:
+	$ctx = stream_context_create();
+	stream_context_set_option($ctx, 'ssl', 'local_cert', 'ck_PS.pem');
+	stream_context_set_option($ctx, 'ssl', 'passphrase', $passphrase);
+  $fp = stream_socket_client(
+				'ssl://gateway.push.apple.com:2195', $err,
+	  		$errstr, 60, STREAM_CLIENT_CONNECT|STREAM_CLIENT_PERSISTENT, $ctx);
+}
 if (!$fp)
 {
 	$status = "connect_failed";

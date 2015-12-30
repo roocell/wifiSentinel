@@ -10,23 +10,21 @@ $device_token=checkinput('device_token');
 
 $ACTION_IN_CHECK="check";
 $ACTION_IN_CREATE="create";
+$ACTION_IN_DELETE="delete";
 
 // returned actions on status=success
 // the app can parse for these actions
 $ACTION_OUT_CREATED_EXISTING  ="created_existing";
 $ACTION_OUT_CREATED_NEW       ="created_new";
-$ACTION_OUT_VALIDATED         ="validated";
+$ACTION_OUT_VALIDATED         ='validated';
 $ACTION_OUT_UNKNOWN_DEVCIE    ="unknown_device";
 
 // $_SERVER['SERVER_ADDR']
-$tg_server_ip="174.112.204.56";
+$tg_server_ip="174.112.216.66";
+$apip_internal="192.168.1.144";
 $server_start_port="18121";
 $server_secret="radiussecret";
 ?>
-
-
-
-
 
 
 
@@ -65,13 +63,24 @@ if ($action==$ACTION_IN_CHECK)
   exit();
 }
 
-
+else if ($action==$ACTION_IN_DELETE) {
+  $sql = "DELETE FROM `sentinels` WHERE device_token='$device_token'";
+  if (!$db->query($sql))
+  {
+    echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo()); echo $sql;
+  } else {
+    echo json_encode(array("status"=>"success", "action"=>$ACTION_IN_DELETE, "message"=> "you are now unregistered")); //64.71.255.204
+    $db=NULL;
+    exit();
+  }
+}
 else if ($action==$ACTION_IN_CREATE)
 {
   $apip=checkinput('apip');
+  $appdebug=checkinput('debug');
 
   // fixup internal network AP
-  if ($apip==$tg_server_ip) $apip="192.168.1.30";
+  if ($apip==$tg_server_ip) $apip=$apip_internal;
 
   // it will either be a completely new sentinel
   // or an additional sentinel on the same public IP
@@ -81,23 +90,33 @@ else if ($action==$ACTION_IN_CREATE)
   if (!$stmt)
   {
     echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo()); echo $sql;
+    exit();
   }
   if($stmt->rowCount() > 0)
   {
       $token_match=0;
       $port=0;
-      while($row = $stmt->fetch(PDO::FETCH_ASSOC) && $token_match==0)
+      $sql = "SELECT * FROM sentinels WHERE apip='$apip' ORDER BY port";
+      foreach ($db->query($sql) as $row)
       {
+          //print_r($row);
           if ($device_token==$row['device_token'])
           {
               $token_match=1;
               $port=$row['port']; // use the same port
+              break;
           }
+          // detect multiple sentinel on same network - use same port
+          if ($apip==$row['apip'])
+          {
+            $port=$row['port']; // use the same port
+            break;
+          }        
       }
       if (!$token_match)
       {
           // adding a new sentinel for this network
-          $sql="INSERT INTO sentinels (device_token, apip, port) VALUES ('$device_token', '$apip', '$port')";
+          $sql="INSERT INTO sentinels (device_token, apip, port, debug) VALUES ('$device_token', '$apip', '$port', '$appdebug')";
           $rc=$db->query($sql);
           if($rc)
           {
@@ -119,6 +138,11 @@ else if ($action==$ACTION_IN_CREATE)
       }
   } else {
       // completely new sentinel/ap
+      $stmt=$db->query("SELECT * FROM sentinels ORDER BY port");
+      if (!$stmt)
+      {
+        echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo()); echo $sql;
+      }
       $port=$server_start_port; // get first free port after 18121
       while($row = $stmt->fetch(PDO::FETCH_ASSOC))
       {
@@ -130,8 +154,7 @@ else if ($action==$ACTION_IN_CREATE)
             $port = $row['port']+1;
           }
       }
-
-      $sql="INSERT INTO sentinels (device_token, apip, port) VALUES ('$device_token', '$apip', '$port')";
+      $sql="INSERT INTO sentinels (device_token, apip, port, debug) VALUES ('$device_token', '$apip', '$port', '$appdebug')";
       $rc=$db->query($sql);
       if($rc)
       {
@@ -143,12 +166,11 @@ else if ($action==$ACTION_IN_CREATE)
                       "server_secret" => $server_secret
                     ));
       } else {
-          //echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo()); echo $sql;
+          echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo()); echo $sql;
           echo json_encode(array("status"=>"error", "message"=>"failed to insert for new"));
           update_clients_conf($apip);
       }
   }
 }
-
 $db=NULL;
 ?>

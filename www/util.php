@@ -17,9 +17,9 @@ function freeradius_contname($_apip)
 
 function checkinput($input)
 {
-  if(!isset($_REQUEST[$input]) || !$_REQUEST[$input]!="")
+  if(!isset($_REQUEST[$input]) || $_REQUEST[$input]=="")
   {
-  	$msg = array ('status' => 'invalid_input');
+  	$msg = array ('status' => 'invalid_input missing '.$input);
   	echo json_encode($msg);
   	exit();
   }

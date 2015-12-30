@@ -223,6 +223,13 @@ while(true)
         echo "Failed to create DB ($sql)\n";
         echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo());
       }
+      // extend radcheck for our purposes
+      $sql="ALTER TABLE `radcheck` ADD `mac` VARCHAR(16) NULL DEFAULT NULL AFTER `value`, ADD `expiry` DATE NULL DEFAULT NULL AFTER `mac`";
+      if (!$db->query($sql))
+      {
+        echo "Failed to extend radcheck ($sql)\n";
+        echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo());
+      }
     }
     // NOTE: keep db open so we can query the database on the next loop
 
