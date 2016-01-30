@@ -13,6 +13,7 @@ echo '-- Setting freerad group to use gid '$TARGET_GID
 groupmod -o -g $TARGET_GID freerad || true
 
 chmod 700 /usr/local/etc/raddb 
+chmod 700 /usr/local/etc/raddb/clients.conf 
 chmod 700 /usr/local/etc/raddb/mods-config/files/authorize
 chmod 777 /var/log/freeradius
 chmod 666 /var/log/freeradius/radius.log

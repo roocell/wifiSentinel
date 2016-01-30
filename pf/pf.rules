@@ -1,2 +1,7 @@
-rdr pass on en0 proto udp from any to any port 18121 -> 192.168.99.100 port 18121
-rdr pass on en0 proto udp from any to any port 18130 -> 192.168.99.100 port 18130
+#rdr pass on en0 proto udp from any to any port 18121 -> 192.168.99.100 port 18121
+#rdr pass on en0 proto udp from any to any port 18130 -> 192.168.99.100 port 18130
+#rdr pass on en0 proto udp from any to any port 18122 -> 192.168.99.100 port 18122
+#rdr pass on en0 proto udp from any to any port 18123 -> 192.168.99.100 port 18123
+#rdr pass on en0 proto udp from any to any port 1812 -> 192.168.99.100 port 1812
+#rdr pass on en0 proto udp from any to any port 1812 -> 192.168. port 1812
+#nat on en0 proto udp from any to any -> (en0) port 1812

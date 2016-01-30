@@ -224,7 +224,7 @@ while(true)
         echo "\nPDO::errorInfo():\n"; print_r($db->errorInfo());
       }
       // extend radcheck for our purposes
-      $sql="ALTER TABLE `radcheck` ADD `mac` VARCHAR(16) NULL DEFAULT NULL AFTER `value`, ADD `expiry` DATE NULL DEFAULT NULL AFTER `mac`";
+      $sql="ALTER TABLE `radcheck` ADD `mac` VARCHAR(16) NULL DEFAULT NULL AFTER `value`, ADD `expiry` DATETIME NULL DEFAULT NULL AFTER `mac`";
       if (!$db->query($sql))
       {
         echo "Failed to extend radcheck ($sql)\n";
@@ -307,7 +307,7 @@ while(true)
 
 
   sleep(1);
-  echo "-------------------------------------------------------------------\n";
+  echo "----------------------------------- ".date("Y-m-d H:i:s")." --------------------------------\n";
 }
 
 

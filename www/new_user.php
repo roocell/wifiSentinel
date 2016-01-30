@@ -6,6 +6,7 @@ include("util.php");
 
 $username=checkinput('username');
 $token=checkinput('device_token');
+$expiry=checkinput('expiry');
 $apip=validate_sentinel($token);
 
 $dsn = "mysql:host=".gethostbyname('mysql').";port=3306;dbname=wifi_sentinel;charset=utf8";
@@ -65,7 +66,10 @@ if($num > 0)
 }
 
 // insert the new user
-$sql="INSERT INTO radcheck (username, attribute, op, value) VALUES ('$username', 'Cleartext-Password', ':=', '$username')";
+if ($expiry==0) $expiry="NULL";
+$sql="INSERT INTO radcheck (username, attribute, op, value, expiry) VALUES ('$username', 'Cleartext-Password', ':=', '$username', '$expiry')";
+$rc=$db->query($sql);
+$sql="INSERT INTO radreply (username, attribute, op, value) VALUES ('$username', 'Session-Timeout', '=', 60)";
 $rc=$db->query($sql);
 if($rc)
 {

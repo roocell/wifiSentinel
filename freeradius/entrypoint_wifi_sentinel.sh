@@ -22,6 +22,17 @@ sed -i "s/.*radius_db =.*/radius_db = \"$MYSQL_RADIUS_DB\"/" /usr/local/etc/radd
 sed -i '0,/-sql/s/-sql/sql/' /usr/local/etc/raddb/sites-enabled/default
 sed -i '0,/-sql/s/-sql/sql/' /usr/local/etc/raddb/sites-enabled/inner-tunnel
 
+# enable Seesion-Timeout in Access-Accept
+line1=$(grep -n "update {" /usr/local/etc/raddb/sites-enabled/inner-tunnel | cut -d : -f 1)
+line2=$(tail -n +$line1 /usr/local/etc/raddb/sites-enabled/inner-tunnel | grep -n -m1 "}" | cut -d : -f 1)
+line3=$(($line1+$line2))
+line4=$(grep -n -m 1 "update outer.session-state {" /usr/local/etc/raddb/sites-enabled/inner-tunnel | cut -d : -f 1)
+line5=$(tail -n +$line4 /usr/local/etc/raddb/sites-enabled/inner-tunnel | grep -n -m1 "}" | cut -d : -f 1)
+line6=$(($line4+$line5))
+echo $line1, $line2, $line3, $line4, $line5, $line6
+awk "NR>=$line1 && NR<=$line3 { sub(\"#\", \"\")} {print }" /usr/local/etc/raddb/sites-enabled/inner-tunnel > inner-tunnel.tmp
+awk "NR>=$line4 && NR<=$line6 { sub(\"#\", \"\")} {print }" inner-tunnel.tmp > inner-tunnel.tmp2
+cp inner-tunnel.tmp2 /usr/local/etc/raddb/sites-enabled/inner-tunnel
 
 echo "********************************************************"
 echo " modifying CLIENTS.CONF freeradius config"
