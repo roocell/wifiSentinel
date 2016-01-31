@@ -21,7 +21,7 @@ $ACTION_OUT_UNKNOWN_DEVCIE    ="unknown_device";
 
 // $_SERVER['SERVER_ADDR']
 $tg_server_ip="174.112.216.66";
-$apip_internal="192.168.1.144";
+$apip_internal="192.168.1.149";
 $server_start_port="18121";
 $server_secret="radiussecret";
 ?>

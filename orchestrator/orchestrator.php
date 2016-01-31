@@ -11,7 +11,7 @@ $DBNAME_PREFIX="radius__"; // dont use '_' in here
 
 $RADIUS_SQL_FILE="schema.sql";
 
-$DOCKER_MACHINE_IP="192.168.99.100";
+$DOCKER_MACHINE_IP="192.168.1.11";
 
 $PF_FILE="~/wifiSentinel/pf/pf.rules";
 $PF_RESTART_CMD="sudo pfctl -F all -f /etc/pf.conf";
@@ -237,15 +237,15 @@ while(true)
     # freeradius port assignment
     # this is just temporary (will not scale)
     # port assignment is done by the registration process - but this task will make sure things are setup properly
-    $port_exists_in_pf=shell_exec("cat $PF_FILE | grep $port");
-    if (!$port_exists_in_pf)
-    {
-      echo "Editing PF file.....\n======================\n";
-      //file_put_contents($PF_FILE, pf_file_entry($port), FILE_APPEND);
-      system("echo \"".pf_file_entry($port)."\" >> ".$PF_FILE); // append
-      system("sudo pfctl -F all -f /etc/pf.conf"); // restart PF
-      echo "\n======================\n";
-    }
+#    $port_exists_in_pf=shell_exec("cat $PF_FILE | grep $port");
+#    if (!$port_exists_in_pf)
+#    {
+#      echo "Editing PF file.....\n======================\n";
+#      //file_put_contents($PF_FILE, pf_file_entry($port), FILE_APPEND);
+#      system("echo \"".pf_file_entry($port)."\" >> ".$PF_FILE); // append
+#      system("sudo pfctl -F all -f /etc/pf.conf"); // restart PF
+#      echo "\n======================\n";
+#    }
 
     # check if docker container for that apip is running
     $c_is_running=0;
